@@ -58,12 +58,4 @@ impl Request {
   pub fn body(&mut self) -> &mut Option<BufReader<TcpStream>> {
     &mut self.body
   }
-
-  pub fn get_header(&self, key: &str) -> Option<&String> {
-    self.headers.get(key)
-  }
-
-  pub fn get_header_all(&self, key: &str) -> Option<&Vec<String>> {
-    self.headers.get_all(key)
-  }
 }

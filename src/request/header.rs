@@ -64,7 +64,7 @@ impl Headers {
     value!(self, "content-type")
   }
 
-  pub fn content_length(&self) -> Option<u64> {
+  pub fn content_length(&self) -> Option<usize> {
     value!(self, "content-length")
       .and_then(|v| v.0.parse().ok())
   }
