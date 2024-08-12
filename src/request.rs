@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::TcpStream};
+use std::{collections::HashMap, io::BufReader, net::TcpStream};
 
 use header::Headers;
 
@@ -8,7 +8,7 @@ pub mod header;
 pub struct Request {
   location: Location,
   headers: Headers,
-  body: Option<TcpStream>
+  body: Option<BufReader<TcpStream>>
 }
 
 #[derive(Debug)]
@@ -39,7 +39,7 @@ impl Request {
     self.location = loc
   }
 
-  pub fn get_location(&self) -> &Location {
+  pub fn location(&self) -> &Location {
     &self.location
   }
 
@@ -47,11 +47,23 @@ impl Request {
     self.headers = headers
   }
 
-  pub fn get_headers(&mut self) -> &mut Headers {
+  pub fn headers(&mut self) -> &mut Headers {
     &mut self.headers
   }
 
-  pub fn set_body(&mut self, stream: TcpStream) {
+  pub fn set_body(&mut self, stream: BufReader<TcpStream>) {
     self.body = Some(stream)
+  }
+
+  pub fn body(&mut self) -> &mut Option<BufReader<TcpStream>> {
+    &mut self.body
+  }
+
+  pub fn get_header(&self, key: &str) -> Option<&String> {
+    self.headers.get(key)
+  }
+
+  pub fn get_header_all(&self, key: &str) -> Option<&Vec<String>> {
+    self.headers.get_all(key)
   }
 }

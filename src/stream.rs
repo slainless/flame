@@ -46,8 +46,8 @@ fn parse_header(buf: &Vec<u8>) -> Result<(String, String), Box<dyn StdError>> {
   }
 }
 
-pub fn parse_stream(mut stream: TcpStream) -> Result<Request, AnyError> {
-  let mut buf_reader = BufReader::new(&mut stream);
+pub fn parse_stream(stream: TcpStream) -> Result<Request, AnyError> {
+  let mut buf_reader = BufReader::new(stream);
 
   let mut request = Request::new();
 
@@ -75,7 +75,7 @@ pub fn parse_stream(mut stream: TcpStream) -> Result<Request, AnyError> {
     {
       // header reading stops here...
       // caused by incoming payload stream
-      request.set_body(stream);
+      request.set_body(buf_reader);
       break;
     }
 
@@ -87,11 +87,11 @@ pub fn parse_stream(mut stream: TcpStream) -> Result<Request, AnyError> {
 
   
     let (key, value) = parse_header(&buf)?;
-    request.get_headers().append(key, value);
+    request.headers().append(key, value);
     buf.clear();
   }
 
-  if request.get_location().1 == "" {
+  if request.location().1 == "" {
     return Err(Box::new(ParseError::EmptyRequest))
   }
   return Ok(request)
