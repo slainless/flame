@@ -1,5 +1,22 @@
 use std::collections::HashMap;
-use crate::multi_value;
+
+mod parser;
+
+macro_rules! values {
+  ($source:expr, $key:expr) => {
+      {
+          $source.get($key).and_then(|v| Some(parser::multi_values_field(v)))
+      }
+  };
+}
+
+macro_rules! value {
+($source:expr, $key:expr) => {
+    {
+        $source.get($key).and_then(|v| parser::single_value_field(v))
+    }
+};
+}
 
 #[derive(Debug)]
 pub struct Headers {
@@ -36,27 +53,39 @@ impl Headers {
   }
 
   pub fn accept(&self) -> Option<Vec<Value>> {
-    multi_value!(self, "accept")
+    values!(self, "accept")
   }
 
   pub fn accept_encoding(&self) -> Option<Vec<Value>> {
-    multi_value!(self, "accept-encoding")
+    values!(self, "accept-encoding")
   }
 
-  // pub fn content_type(&self) -> Option<Value> {
-  //   self
-      
-  // }
+  pub fn content_type(&self) -> Option<Value> {
+    value!(self, "content-type")
+  }
+
+  pub fn content_length(&self) -> Option<u64> {
+    value!(self, "content-length")
+      .and_then(|v| v.0.parse().ok())
+  }
+
+  pub fn get_value(&self, key: &str) -> Option<Value> {
+    self
+      .get(key)
+      .and_then(|v| 
+        parser::single_value_field(v)
+      )
+  }
 
   pub fn get_multi_values(&self, key: &str) -> Option<Vec<Value>> {
-    multi_value!(self, key)
+    values!(self, key)
   }
 
   pub fn get_multi_values_all(&self, key: &str) -> Option<Vec<Vec<Value>>> {
     self
       .get_all(key)
       .and_then(|v| v.iter()
-        .map(|v| Some(parse_multi_value(v)))
+        .map(|v| Some(parser::multi_values_field(v)))
         .collect()
       )
   }
@@ -64,91 +93,3 @@ impl Headers {
 
 #[derive(Debug)]
 pub struct Value<'a>(&'a str, HashMap<&'a str, &'a str>);
-
-fn field_split(value: &str, delimiter: char) -> Vec<&str> {
-  let mut values: Vec<&str> = Vec::new();
-  
-  let mut should_skip = false;
-  
-  let mut start = 0;
-  for (index, char) in value.char_indices() {
-    if char == '\"' {
-      if index == 0 || value.get(index-1..index-1) != Some("\\") {
-        should_skip = !should_skip;
-        continue;
-      }
-    }
-
-    if char == delimiter && !should_skip {
-      values.push(&value[start..index]);
-      start = index + 1;
-    }
-  }
-
-  if start != value.len() {
-    values.push(&value[start..]);
-  }
-
-  values
-}
-
-// fn field_split_n(value: &str, delimiter: char, n: usize) -> Vec<&str> {
-//   let mut values: Vec<&str> = Vec::new();
-  
-//   let mut should_skip = false;
-  
-//   let mut start = 0;
-//   for (index, char) in value.char_indices() {
-//     if char == '\"' {
-//       if index == 0 || value.get(index-1..index-1) != Some("\\") {
-//         should_skip = !should_skip;
-//         continue;
-//       }
-//     }
-
-//     if char == delimiter && !should_skip {
-//       values.push(&value[start..index]);
-//       if values.len() == n {
-//         break;
-//       }
-//       start = index + 1;
-//     }
-//   }
-
-//   if start != value.len() {
-//     values.push(&value[start..]);
-//   }
-
-//   values
-// }
-
-fn parse_multi_value(value: &str) -> Vec<Value> {
-  field_split(value, ',')
-    .iter()
-    .map(|v| {
-      let splitted = field_split(v, ';');
-      if splitted.len() == 1 {
-        Value(splitted[0].trim(), HashMap::new())
-      } else {
-        let mut map: HashMap<&str, &str> = HashMap::new();
-        for entry in splitted[1..].iter() {
-          if let Some((key, value)) = entry.split_once('=') {
-            map.insert(key.trim(), value.trim());
-          } else {
-            map.insert(v.trim(), "");
-          }
-        }
-        Value(splitted[0].trim(), map)
-      }
-    })
-    .collect()
-}
-
-#[macro_export]
-macro_rules! multi_value {
-    ($source:expr, $key:expr) => {
-        {
-            $source.get($key).and_then(|v| Some(parse_multi_value(v)))
-        }
-    };
-}
