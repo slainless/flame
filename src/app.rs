@@ -1,25 +1,24 @@
-use std::{cell::RefCell, collections::HashMap, error::Error, net::TcpListener};
+use std::{collections::HashMap, error::Error, net::TcpListener};
 
-use crate::{request::Request, stream};
+use crate::{request::Request, router::Router, stream};
 
 pub struct App {
-  handlers: RefCell<HashMap<String, Vec<Box<dyn Fn(Request) -> ()>>>>
+  router: Router
 }
 
 impl App {
   pub fn new() -> App {
     App{
-      handlers: RefCell::new(HashMap::new())
+      router: Router::new()
     }
   }
 
-  pub fn get(&self, path: &str, handler: Box<dyn Fn(Request) -> ()>) {
-    self.handlers
-      .borrow_mut()
-      .entry(path.to_string())
-      .or_insert(Vec::new())
-      .push(handler);
-  }
+  // pub fn get(&self, path: &str, handler: Box<dyn Fn(Request) -> ()>) {
+  //   self.handlers
+  //     .entry(path.to_string())
+  //     .or_insert(Vec::new())
+  //     .push(handler);
+  // }
 
   pub fn listen(&self, address: &str) -> Result<(), Box<dyn Error>> {
     let listener = TcpListener::bind(address)?;
@@ -32,23 +31,12 @@ impl App {
       let mut req = match stream::parse_stream(incoming.unwrap()) {
         Ok(req) => req,
         Err(err) => {
-          println!("Error: {err:?}");
+          println!("Error parsing stream: {err:?}");
           continue;
         }
       };
 
-      println!("Request: {req:?}");
-      
-      {
-        let headers = req.get_headers();
-        let accept = headers.accept();
-        let sec = headers.get_multi_values("sec-ch-ua");
-        println!("Accept: {accept:?}");
-        println!("Sec: {sec:?}");
-      }
-
-
-      // let handler = match request::determine_handler(req, self.handlers) {
+      // let handler = match self.determine_handler(&req) {
       //   Ok(handler) => handler,
       //   Err(err) => {
       //     continue
@@ -59,5 +47,5 @@ impl App {
     }
 
     return Ok(())
-  } 
+  }
 }
