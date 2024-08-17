@@ -1,6 +1,6 @@
 # Flame
 
-[Hono](https://hono.dev) inspired web framework.
+A web framework.
 
 ## Why another web framework?
 
