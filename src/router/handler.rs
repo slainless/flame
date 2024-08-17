@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::cmp::Ordering;
 use std::rc::Rc;
 
 use crate::request::Method;
@@ -21,11 +20,11 @@ impl std::fmt::Debug for dyn HandlerFn {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Handler {
   pub method: Method,
   pub path: String,
-  pub function: Box<dyn HandlerFn>,
+  pub function: Rc<dyn HandlerFn>,
   pub hook_type: HookType
 }
 
@@ -35,7 +34,7 @@ impl Handler {
 pub type SharedHandler = Rc<Handler>;
 pub type MutSharedHandler = Rc<RefCell<Handler>>;
 
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone)]
 pub enum HookType {
   Before,
   Main,

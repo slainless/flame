@@ -11,7 +11,7 @@ pub struct Request {
   body: Option<BufReader<TcpStream>>
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Method {
   All,
   Post,

@@ -1,11 +1,7 @@
-use webserver::App;
+use webserver::{App, Handle, Return};
 
 fn main() {
-    let app = App::new();
-
-    // app.get("/", Box::new(|req| {
-    //     print!("Incoming request: {req:?}");
-    // }));
+    let mut app = App::new();
 
     app.listen("0.0.0.0:8080").unwrap();
 }

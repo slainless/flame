@@ -1,14 +1,14 @@
-use std::{borrow::Borrow, cell::{Ref, RefCell}, cmp::Ordering, collections::HashMap, env::split_paths, rc::{Rc, Weak}};
-use crate::{dbgln, debug, request::Method, router::params};
+use std::{cell::RefCell, cmp::Ordering, collections::HashMap, rc::Rc};
+use crate::{dbgln, request::Method, router::params, should_debug};
 use super::{handler::{Handler, SharedHandler}, params::{params_from, SharedParams}};
 
 mod node;
 use node::*;
 
+should_debug!(0);
+
 #[cfg(test)]
 mod tree_test;
-
-const DEBUG: bool = false;
 
 #[derive(Debug)]
 pub struct Tree {

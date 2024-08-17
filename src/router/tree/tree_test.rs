@@ -25,7 +25,7 @@ fn __return(status: u32) -> Return {
 
 fn __handler(status: u32, path: &str) -> Handler {
   Handler{
-    function: Box::new(move |_| {
+    function: Rc::new(move |_| {
       __return(status)
     }),
     hook_type: HookType::Main,
@@ -85,7 +85,6 @@ fn test_handler_exist(node: Rc<RefCell<Node>>, index: usize, priority: u32, stat
 
 mod register_test {
   use super::*;
-  use crate::router::*;
 
   #[test]
   fn correct_tree_initialization() {
