@@ -1,8 +1,6 @@
 use std::{collections::HashMap, io::BufReader, net::TcpStream};
 
-use header::Headers;
-
-pub mod header;
+use crate::header::Headers;
 
 #[derive(Debug)]
 pub struct Request {

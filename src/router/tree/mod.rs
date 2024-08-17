@@ -72,7 +72,7 @@ impl Tree {
     self
   }
   
-  pub fn handlers(&self, method: Method, path: &str) -> Vec<(SharedHandler, SharedParams)> {
+  pub fn handlers(&self, method: &Method, path: &str) -> Vec<(SharedHandler, SharedParams)> {
     let fragments = Tree::split_path(path);
 
     let all = RefCell::borrow(&self.all);
@@ -137,7 +137,7 @@ impl Tree {
       .iter()
       .map(|h| (h.0.1.clone(), h.1.clone()))
       .filter(|h| {
-        h.0.method == method || method == Method::All
+        h.0.method == *method || *method == Method::All
       })
       .collect()
   }

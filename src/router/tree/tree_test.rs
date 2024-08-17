@@ -1,7 +1,7 @@
 use handler::{Handler, HookType, Return};
 use tree::Node;
 use crate::{request::{Method, Request}, response::Response, router::*, should_debug};
-use std::{cell::RefCell, rc::Rc, collections::HashMap};
+use std::{borrow::{Borrow, BorrowMut}, cell::RefCell, collections::HashMap, rc::Rc};
 
 should_debug!(no);
 
@@ -63,10 +63,10 @@ fn test_node_exist(tree: &Tree, path: &str) -> Rc<RefCell<Node>> {
 
 fn test_handler(h: &Rc<Handler>, status: u32) {
   let result = match h.function.as_ref()(Context { 
-    req: Request::new(), 
-    res: Response::new(), 
-    params: params::new_shared_params(), 
-    handler: h.clone()
+    req: &Request::new(), 
+    res: &mut Response::new(), 
+    params: &params::new_shared_params(), 
+    handler: &h
   }) {
     Return::New(res) => Some(res),
     _ => None
@@ -394,7 +394,7 @@ mod tree_routing_test {
       tree.register(__handler(i, &path));
     }
 
-    let handlers = tree.handlers(Method::Get, &path);
+    let handlers = tree.handlers(&Method::Get, &path);
     dbgln!("handlers: {:#?}", handlers);
     assert!(handlers.len() == 10);
 
@@ -417,7 +417,7 @@ mod tree_routing_test {
     tree.register(__handler(70, "/a/b/c/*"));
     tree.register(__handler(80, "/*/b/c/*"));
     
-    let handlers = tree.handlers(Method::Get, "a/b/c/d");
+    let handlers = tree.handlers(&Method::Get, "a/b/c/d");
     dbgln!("handlers: {:#?}", handlers);
     assert!(handlers.len() == 8);
 
@@ -450,7 +450,7 @@ mod tree_routing_test {
     tree.register(__handler(70, "/a/b/c/d"));
     tree.register(__handler(80, "/a/b/c/:id{{{{{{{{{{{{{{{{{{{XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX]}"));
     
-    let handlers = tree.handlers(Method::Get, "a/b/c/d");
+    let handlers = tree.handlers(&Method::Get, "a/b/c/d");
     dbgln!("handlers: {:#?}", handlers);
     assert!(handlers.len() == 8);
 
@@ -496,7 +496,7 @@ mod tree_routing_test {
     tree.register(__handler(90, "/*/b/:hahah{rrrr}/d"));
     tree.register(__handler(100, "/:multiple/:param/:goes{rrrr}/:brrrr"));
 
-    let handlers = tree.handlers(Method::Get, "/a/b/c/d");
+    let handlers = tree.handlers(&Method::Get, "/a/b/c/d");
 
     assert!(handlers.len() == 11);
 

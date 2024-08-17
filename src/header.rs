@@ -91,5 +91,28 @@ impl Headers {
   }
 }
 
+pub fn merge_move(from: Headers, to: &mut Headers) {
+  for (k, v) in from.headers.into_iter() {
+    let entry = to.headers.get_mut(&k);
+    if let Some(vec) = entry {
+      vec.extend_from_slice(&v);
+    } else {
+      to.headers.insert(k, v);
+    }
+  }
+}
+
+pub fn merge_copy(from: &Headers, to: &mut Headers) {
+  for (k, v) in from.headers.iter() {
+    let entry = to.headers.get_mut(k);
+    if let Some(vec) = entry {
+      vec.extend_from_slice(&v);
+    } else {
+      to.headers.insert(k.clone(), v.clone());
+    }
+  }
+}
+
+
 #[derive(Debug)]
 pub struct Value<'a>(&'a str, HashMap<&'a str, &'a str>);

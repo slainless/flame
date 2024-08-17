@@ -75,14 +75,7 @@ impl App {
         }
       };
 
-      // let handler = match self.determine_handler(&req) {
-      //   Ok(handler) => handler,
-      //   Err(err) => {
-      //     continue
-      //   }
-      // };
-
-      // handler(req);
+      let res = self.router.dispatch(req);
     }
 
     return Ok(())

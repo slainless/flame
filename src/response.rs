@@ -1,4 +1,4 @@
-use crate::request::header::Headers;
+use crate::header::{self, Headers};
 
 #[derive(Debug)]
 pub struct Response {
@@ -20,4 +20,16 @@ impl Response {
     self.status = status;
     self
   }
+}
+
+pub fn merge_move(from: Response, to: &mut Response) {
+  to.status = from.status;
+  header::merge_move(from.headers, &mut to.headers);
+  to.body = from.body;
+}
+
+pub fn merge_copy(from: &Response, to: &mut Response) {
+  to.status = from.status;
+  header::merge_copy(&from.headers, &mut to.headers);
+  to.body = from.body.clone();
 }
