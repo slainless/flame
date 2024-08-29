@@ -37,13 +37,12 @@ impl Router {
     let handlers = self.tree.handlers(&location.0, &location.1);
     let (post_handlers, pre_handlers): (Vec<_>, Vec<_>) = handlers
       .into_iter()
-      .partition(|h| h.0.hook_type == HookType::After);
+      .partition(|h| h.hook_type == HookType::After);
 
-    for (handler, params) in pre_handlers {
+    for handler in pre_handlers {
       let ctx = Context{
         req: &req,
         res: &mut final_response,
-        params: &params.clone(),
         handler: &handler.clone()
       };
 
@@ -75,11 +74,10 @@ impl Router {
       }
     }
     
-    for (handler, params) in post_handlers {
+    for handler in post_handlers {
       let ctx = Context{
         req: &req,
         res: &mut final_response,
-        params: &params.clone(),
         handler: &handler.clone()
       };
 

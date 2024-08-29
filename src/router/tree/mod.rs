@@ -72,53 +72,35 @@ impl Tree {
     self
   }
   
-  pub fn handlers(&self, method: &Method, path: &str) -> Vec<(SharedHandler, SharedParams)> {
+  pub fn handlers(&self, method: &Method, path: &str) -> Vec<SharedHandler> {
     let fragments = Tree::split_path(path);
 
     let all = RefCell::borrow(&self.all);
     let handlers = RefCell::new(Vec::new());
-
     {
       let mut h = RefCell::borrow_mut(&handlers);
-      let empty_param = params::new_shared_params();
-  
-      h.extend_from_slice(
-        &all.handlers
-          .iter()
-          .map(|h| ((h.0, h.1.clone()), empty_param.clone()))
-          .collect::<Vec<_>>()
-      );
+      h.extend_from_slice(&all.handlers);
     }
 
     if fragments.len() == 1 {
       let node = RefCell::borrow(&self.root);
       let mut h = RefCell::borrow_mut(&handlers);
-      let empty_param = params::new_shared_params();
-
-      h.extend_from_slice(
-        &node.handlers
-          .iter()
-          .map(|h| ((h.0, h.1.clone()), empty_param.clone()))
-          .collect::<Vec<_>>()
-      );
+      h.extend_from_slice(&node.handlers);
     } else {
       let root = RefCell::borrow(&self.root);
       Tree::traverse(
         &fragments,
         &root.next,
         1, // we start at 1 to skip root...
-        HashMap::new(),
-        &|node, parameters, fragments, i| {
+        &|node, fragments, i| {
           dbgln!("on_match hook called with index: {}", i);
           if fragments.len() == i {
             let node = RefCell::borrow(&node);
             dbgln!("Node at last fragment ({}): {:#?}", fragments[i - 1], node);
             let mut h = RefCell::borrow_mut(&handlers);
-            let param = Rc::new(Tree::build_parameters(parameters));
-             
             let h2 = node.handlers
                 .iter()
-                .map(|h| ((h.0, h.1.clone()), param.clone()))
+                .map(|h| (h.0, h.1.clone()))
                 .collect::<Vec<_>>();
 
             h.extend_from_slice(&h2);
@@ -131,13 +113,13 @@ impl Tree {
 
     let mut h = handlers.take();
     h.sort_by(|a, b| {
-      Tree::compare_handler(&a.0, &b.0)
+      Tree::compare_handler(&a, &b)
     });
     h
       .iter()
-      .map(|h| (h.0.1.clone(), h.1.clone()))
+      .map(|h| h.1.clone())
       .filter(|h| {
-        h.0.method == *method || *method == Method::All
+        h.method == *method || *method == Method::All
       })
       .collect()
   }
@@ -199,8 +181,7 @@ impl Tree {
     fragments: &[&str], 
     next: &HashMap<String, Rc<RefCell<Node>>>,
     i: usize,
-    parameters: HashMap<&str, &str>,
-    on_match: &impl Fn(&Rc<RefCell<Node>>, &HashMap<&str, &str>, &[&str], usize),
+    on_match: &impl Fn(&Rc<RefCell<Node>>, &[&str], usize),
   ) {
     dbgln!("Start traversing with index: {}", i);
     let cursor = {
@@ -225,15 +206,12 @@ impl Tree {
       }
 
       let derived_next: &HashMap<String, Rc<RefCell<Node>>> = &ref_node.next;
-      let mut derived_parameters: HashMap<&str, &str> = HashMap::new();
-      derived_parameters.clone_from(&parameters);
 
       let derived_i = {
         // handler for special fragment (e.g. ":id", ":id{regex}")
         if let Some(parameter) = &ref_node.parameter {
           dbgln!("Cursor <{}> match parameterized fragment <{}> for path <{}>", 
             cursor, ref_node.fragment, Tree::rebuild_path_to_root(node.clone()));
-          derived_parameters.insert(parameter.0.as_str(), cursor);
           i + 1
         // handler for normal url fragment
         } else {
@@ -244,13 +222,12 @@ impl Tree {
       };
 
       dbgln!("Calling on_match hook since cursor matched");
-      on_match(&node, &derived_parameters, fragments, derived_i);
+      on_match(&node, fragments, derived_i);
 
       Tree::traverse(
         fragments, 
         derived_next, 
         derived_i,
-        derived_parameters,
         on_match
       );
     }   
