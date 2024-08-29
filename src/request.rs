@@ -34,27 +34,31 @@ impl Request {
     }
   }
 
-  pub fn set_location(&mut self, loc: Location) {
-    self.location = loc
-  }
-
   pub fn location(&self) -> &Location {
     &self.location
   }
 
-  pub fn set_headers(&mut self, headers: Headers) {
+  pub fn headers(&self) -> &Headers {
+    &self.headers
+  }
+
+  pub(crate) fn set_location(&mut self, loc: Location) {
+    self.location = loc
+  }
+
+  pub(crate) fn set_headers(&mut self, headers: Headers) {
     self.headers = headers
   }
 
-  pub fn headers(&mut self) -> &mut Headers {
+  pub(crate) fn mut_headers(&mut self) -> &mut Headers {
     &mut self.headers
   }
 
-  pub fn set_body(&mut self, stream: BufReader<TcpStream>) {
+  pub(crate) fn set_body(&mut self, stream: BufReader<TcpStream>) {
     self.body = Some(stream)
   }
 
-  pub fn body(&mut self) -> &mut Option<BufReader<TcpStream>> {
+  pub(crate) fn body(&mut self) -> &mut Option<BufReader<TcpStream>> {
     &mut self.body
   }
 }
