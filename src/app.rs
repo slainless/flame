@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error, net::TcpListener};
+use std::{error::Error, net::TcpListener};
 
 use crate::{request::Method, router::{HandleType, Handler, HookType, Router}, stream, Handle};
 
@@ -63,11 +63,15 @@ impl App {
     let listener = TcpListener::bind(address)?;
 
     for incoming in listener.incoming() {
-      if incoming.is_err() {
-        continue
-      }
+      let req_stream = match incoming {
+        Ok(stream) => stream,
+        Err(_) => {
+          continue;
+        }
+      };
+      let res_stream = req_stream.try_clone()?;
 
-      let mut req = match stream::parse_stream(incoming.unwrap()) {
+      let req = match stream::parse_stream(req_stream) {
         Ok(req) => req,
         Err(err) => {
           println!("Error parsing stream: {err:?}");
@@ -75,7 +79,7 @@ impl App {
         }
       };
 
-      let res = self.router.dispatch(req);
+      self.router.dispatch(req, res_stream);
     }
 
     return Ok(())

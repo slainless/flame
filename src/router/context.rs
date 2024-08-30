@@ -5,5 +5,5 @@ use super::Handler;
 pub struct Context<'a> {
   pub req: &'a Request,
   pub res: &'a mut Response,
-  pub handler: &'a Handler
+  // pub handler: &'a Handler
 }

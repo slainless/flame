@@ -30,9 +30,9 @@ impl Headers {
     }
   }
 
-  pub fn set(&mut self, key: String, value: String) -> &Self {
+  pub fn set(&mut self, key: &str, value: String) -> &Self {
     let value = vec![value];
-    self.headers.insert(key, value);
+    self.headers.insert(key.to_string(), value);
     self
   }
 
@@ -89,30 +89,33 @@ impl Headers {
         .collect()
       )
   }
-}
-
-pub fn merge_move(from: Headers, to: &mut Headers) {
-  for (k, v) in from.headers.into_iter() {
-    let entry = to.headers.get_mut(&k);
-    if let Some(vec) = entry {
-      vec.extend_from_slice(&v);
-    } else {
-      to.headers.insert(k, v);
+  
+  pub(crate) fn move_to(self, to: &mut Headers) {
+    for (k, v) in self.headers.into_iter() {
+      let entry = to.headers.get_mut(&k);
+      if let Some(vec) = entry {
+        vec.extend_from_slice(&v);
+      } else {
+        to.headers.insert(k, v);
+      }
     }
   }
-}
 
-pub fn merge_copy(from: &Headers, to: &mut Headers) {
-  for (k, v) in from.headers.iter() {
-    let entry = to.headers.get_mut(k);
-    if let Some(vec) = entry {
-      vec.extend_from_slice(&v);
-    } else {
-      to.headers.insert(k.clone(), v.clone());
+  pub(crate) fn copy_to(&self, to: &mut Headers) {
+    for (k, v) in self.headers.iter() {
+      let entry = to.headers.get_mut(k);
+      if let Some(vec) = entry {
+        vec.extend_from_slice(&v);
+      } else {
+        to.headers.insert(k.clone(), v.clone());
+      }
     }
   }
-}
 
+  pub fn iter(&self) -> Box<dyn Iterator<Item = (&String, &Vec<String>)>  + '_> {
+    Box::new(self.headers.iter())
+  }
+}
 
 #[derive(Debug)]
 pub struct Value<'a>(&'a str, HashMap<&'a str, &'a str>);

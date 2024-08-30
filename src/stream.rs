@@ -1,4 +1,4 @@
-use std::{io::{BufRead, BufReader}, net::TcpStream, error::Error as StdError};
+use std::{error::Error as StdError, io::{BufRead, BufReader}, net::TcpStream};
 use crate::request::{Location, Method, Request};
 
 pub mod error;
@@ -16,7 +16,6 @@ fn parse_location(buf: &Vec<u8>) -> Result<Location, AnyError> {
   if str.len() != 3 {
     return Err(Box::new(ParseError::InvalidLocationFormat));
   }
-
 
   match str[0].to_lowercase().as_str() {
     "get" => location.0 = Method::Get,
@@ -47,15 +46,17 @@ fn parse_header(buf: &Vec<u8>) -> Result<(String, String), Box<dyn StdError>> {
 }
 
 pub fn parse_stream(stream: TcpStream) -> Result<Request, AnyError> {
-  let mut buf_reader = BufReader::new(stream);
-
-  let mut request = Request::new();
+  let mut reader = BufReader::new(stream);
+  let mut request = Request::new(None);
 
   let mut buf: Vec<u8> = Vec::with_capacity(BUFFER_SIZE);
   let mut line = 0;
   let mut header_sizes = 0;
   loop {
-    let res = buf_reader.read_until(0xA, &mut buf)?;
+    let res = {
+      reader.read_until(0xA, &mut buf)?
+    };
+
     if header_sizes + res > BUFFER_SIZE {
       return Err(Box::new(ParseError::HeaderTooLong(BUFFER_SIZE)))
     }
@@ -75,7 +76,7 @@ pub fn parse_stream(stream: TcpStream) -> Result<Request, AnyError> {
     {
       // header reading stops here...
       // caused by incoming payload stream
-      request.set_body(buf_reader);
+      request.set_body(Some(reader));
       break;
     }
 
@@ -87,7 +88,7 @@ pub fn parse_stream(stream: TcpStream) -> Result<Request, AnyError> {
 
   
     let (key, value) = parse_header(&buf)?;
-    request.headers().append(key, value);
+    request.mut_headers().append(key, value);
     buf.clear();
   }
 

@@ -1,7 +1,7 @@
 use handler::{Handler, HookType, Return};
 use tree::Node;
-use crate::{request::{Method, Request}, response::Response, router::*, should_debug};
-use std::{borrow::{Borrow, BorrowMut}, cell::RefCell, collections::HashMap, rc::Rc};
+use crate::{protocol::StatusCode, request::{Method, Request}, response::Response, router::*, should_debug};
+use std::{borrow::{Borrow, BorrowMut}, cell::RefCell, collections::HashMap, error::Error, rc::Rc};
 
 should_debug!(no);
 
@@ -17,16 +17,15 @@ macro_rules! parent {
     };
 }
 
-fn __return(status: u32) -> Return {
-  let mut res = Response::new();
-  res.set_status(status);
-  Return::New(res)
+fn __return(ctx: &mut Context, status: u16) -> Result<Return, Box<dyn Error>> {
+  ctx.res.status(StatusCode::Other(status, "Status".to_string()));
+  Ok(Return::End)
 }
 
-fn __handler(status: u32, path: &str) -> Handler {
+fn __handler(status: u16, path: &str) -> Handler {
   Handler{
-    function: Rc::new(move |_| {
-      __return(status)
+    function: Rc::new(move |ctx| {
+      __return(ctx, status)
     }),
     hook_type: HookType::Main,
     method: Method::Get,
@@ -61,20 +60,18 @@ fn test_node_exist(tree: &Tree, path: &str) -> Rc<RefCell<Node>> {
   parent
 }
 
-fn test_handler(h: &Rc<Handler>, status: u32) {
-  let result = match h.function.as_ref()(Context { 
-    req: &Request::new(), 
-    res: &mut Response::new(),
-    handler: &h
-  }) {
-    Return::New(res) => Some(res),
-    _ => None
+fn test_handler(h: &Rc<Handler>, status: u16) {
+  let mut res = Response::new(None);
+  let mut ctx = Context {
+    req: &Request::new(None), 
+    res: &mut res,
   };
-  assert!(result.is_some());
-  assert_eq!(result.unwrap().status, status);
+
+  h.function.as_ref()(&mut ctx);
+  assert_eq!(res.status, StatusCode::Other(status, "Status".to_string()));
 }
 
-fn test_handler_exist(node: Rc<RefCell<Node>>, index: usize, priority: u32, status: u32) {
+fn test_handler_exist(node: Rc<RefCell<Node>>, index: usize, priority: u32, status: u16) {
   let node = RefCell::borrow(&node);
   
   assert!(node.handlers.len() > index);
@@ -399,7 +396,7 @@ mod tree_routing_test {
 
     for i in 0..10 {
       let h = handlers.get(i).unwrap();
-      test_handler(h, i as u32)
+      test_handler(h, i as u16)
     }
   }
 
@@ -422,7 +419,7 @@ mod tree_routing_test {
 
     for i in 0..8 {
       let h = handlers.get(i).unwrap();
-      test_handler(h, ((i + 1) * 10) as u32)
+      test_handler(h, ((i + 1) * 10) as u16)
     }
   }
 
@@ -455,7 +452,7 @@ mod tree_routing_test {
 
     for i in 0..8 {
       let h = handlers.get(i).unwrap();
-      test_handler(h, ((i + 1) * 10) as u32);
+      test_handler(h, ((i + 1) * 10) as u16);
 
       // match i {
       //   0 => assert!(param.clone().as_ref() == &strmap!("id" => "a")),
@@ -501,7 +498,7 @@ mod tree_routing_test {
 
     for i in 0..11 {
       let h = handlers.get(i).unwrap();
-      test_handler(h, (i * 10) as u32);
+      test_handler(h, (i * 10) as u16);
 
       // match i {
       //   0 => assert!(param.clone().as_ref() == &strmap!()),

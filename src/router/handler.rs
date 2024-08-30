@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::error::Error;
 use std::rc::Rc;
 
 use crate::request::Method;
@@ -8,12 +9,11 @@ use super::Context;
 
 pub enum Return {
   Next,
-  Merge(Response),
-  New(Response)
+  End
 }
 
-pub trait HandlerFn: Fn(Context) -> Return {}
-impl <F> HandlerFn for F where F: Fn(Context) -> Return {}
+pub trait HandlerFn: Fn(&mut Context) -> Result<Return, Box<dyn Error>> {}
+impl <F> HandlerFn for F where F: Fn(&mut Context) -> Result<Return, Box<dyn Error>> {}
 impl std::fmt::Debug for dyn HandlerFn {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
       write!(f, "HandlerFn")

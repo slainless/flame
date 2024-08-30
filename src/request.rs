@@ -2,7 +2,6 @@ use std::{collections::HashMap, io::BufReader, net::TcpStream};
 
 use crate::header::Headers;
 
-#[derive(Debug)]
 pub struct Request {
   location: Location,
   headers: Headers,
@@ -26,11 +25,11 @@ pub type Header = HashMap<String, Vec<String>>;
 pub type URI = String;
 
 impl Request {
-  pub fn new() -> Request {
+  pub(crate) fn new(reader: Option<BufReader<TcpStream>>) -> Request {
     Request {
       headers: Headers::new(),
       location: Location(Method::Get, String::new()),
-      body: None
+      body: reader
     }
   }
 
@@ -40,6 +39,14 @@ impl Request {
 
   pub fn headers(&self) -> &Headers {
     &self.headers
+  }
+
+  pub fn body(&mut self) -> &Option<BufReader<TcpStream>> {
+    &mut self.body
+  }
+
+  pub(crate) fn set_body(&mut self, body: Option<BufReader<TcpStream>>) {
+    self.body = body
   }
 
   pub(crate) fn set_location(&mut self, loc: Location) {
@@ -52,13 +59,5 @@ impl Request {
 
   pub(crate) fn mut_headers(&mut self) -> &mut Headers {
     &mut self.headers
-  }
-
-  pub(crate) fn set_body(&mut self, stream: BufReader<TcpStream>) {
-    self.body = Some(stream)
-  }
-
-  pub(crate) fn body(&mut self) -> &mut Option<BufReader<TcpStream>> {
-    &mut self.body
   }
 }

@@ -3,13 +3,13 @@ mod handler;
 mod context;
 mod params;
 
-use std::{borrow::Borrow, rc::Rc};
+use std::{error::Error, io::BufWriter, net::TcpStream, rc::Rc};
 
 use tree::Tree;
 pub use context::Context;
 pub use handler::{Return, Handler, HandlerFn, HookType};
 
-use crate::{request::Request, response::{self, Response}};
+use crate::{request::Request, response::Response};
 
 pub struct Router {
   tree: Tree
@@ -31,77 +31,72 @@ impl Router {
     self
   }
 
-  pub fn dispatch(&self, req: Request) -> Response {
-    let mut final_response = Response::new();
+  pub fn dispatch(&self, req: Request, stream: TcpStream) -> Result<Response, Box<dyn Error>> {
+    let mut response = Response::new(Some(BufWriter::new(stream)));
     let location = req.location();
     let handlers = self.tree.handlers(&location.0, &location.1);
     let (post_handlers, pre_handlers): (Vec<_>, Vec<_>) = handlers
       .into_iter()
       .partition(|h| h.hook_type == HookType::After);
 
-    for handler in pre_handlers {
-      let ctx = Context{
+    let error = 'error: {
+      let mut ctx: Context = Context{
         req: &req,
-        res: &mut final_response,
-        handler: &handler.clone()
+        res: &mut response,
+        // handler: &handler.clone()
       };
 
-      let function = handler.function.as_ref();
-      match handler.hook_type {
-        HookType::Before => {
-          match function(ctx) {
-            Return::Next => continue,
-            Return::Merge(response) => {
-              response::merge_move(response, &mut final_response);
-              break
-            },
-            Return::New(response) => {
-              final_response = response;
-              break
+      for handler in pre_handlers {
+        let function = handler.function.as_ref();
+        match handler.hook_type {
+          HookType::Before => {
+            match function(&mut ctx) {
+              Ok(return_type) => match return_type {
+                Return::Next => continue,
+                Return::End => {
+                  break
+                },
+              },
+              Err(err) => break 'error Some(err)
             }
-          }
-        },
-        HookType::Main => {
-          match function(ctx) {
-            Return::Next => (),
-            Return::Merge(response) => response::merge_move(response, &mut final_response),
-            Return::New(response) => final_response = response,
-          }
-
-          break
-        },
-        HookType::After => panic!("Should not dispatch any post handlers here!"),
+          },
+          HookType::Main => {
+            match function(&mut ctx) {
+              Ok(return_type) => match return_type {
+                  Return::Next => break,
+                  Return::End => break,
+              },
+              Err(err) => break 'error Some(err)
+            }
+          },
+          HookType::After => panic!("Should not dispatch any post handlers here!"),
+        }
       }
-    }
-    
-    for handler in post_handlers {
-      let ctx = Context{
-        req: &req,
-        res: &mut final_response,
-        handler: &handler.clone()
-      };
-
-      let function = handler.function.as_ref();
-      match handler.hook_type {
-        HookType::Before => panic!("Should not dispatch any pre handlers (before) here!"),
-        HookType::Main => panic!("Should not dispatch any pre handlers (main) here!"),
-        HookType::After => {
-          match function(ctx) {
-            Return::Next => continue,
-            Return::Merge(response) => {
-              response::merge_move(response, &mut final_response);
-              break
-            },
-            Return::New(response) => {
-              final_response = response;
-              break
+      
+      for handler in post_handlers {
+        let function = handler.function.as_ref();
+        match handler.hook_type {
+          HookType::Before => panic!("Should not dispatch any pre handlers (before) here!"),
+          HookType::Main => panic!("Should not dispatch any pre handlers (main) here!"),
+          HookType::After => {
+            match function(&mut ctx) {
+              Ok(return_type) => match return_type {
+                Return::Next => continue,
+                Return::End => break
+              },
+              Err(err) => break 'error Some(err)
             }
           }
         }
       }
-    }
 
-    final_response
+      None
+    };
+
+    match error {
+      Some(err) => Err(err),
+      None => Ok(response)
+    }
   }
 }
 
