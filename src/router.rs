@@ -31,7 +31,7 @@ impl Router {
     self
   }
 
-  pub fn dispatch(&self, req: Request, stream: TcpStream) -> Result<Response, Box<dyn Error>> {
+  pub fn dispatch(&self, req: Request, stream: TcpStream) -> (Response, Option<Box<dyn Error>>) {
     let mut response = Response::new(Some(BufWriter::new(stream)));
     let location = req.location();
     let handlers = self.tree.handlers(&location.0, &location.1);
@@ -93,10 +93,7 @@ impl Router {
       None
     };
 
-    match error {
-      Some(err) => Err(err),
-      None => Ok(response)
-    }
+    (response, error)
   }
 }
 

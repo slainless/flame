@@ -6,7 +6,10 @@ use crate::{header::Headers, protocol::{self, StatusCode}, Return};
 pub struct Response {
   pub status: StatusCode,
   pub headers: Headers,
-  stream: Option<BufWriter<TcpStream>>
+  stream: Option<BufWriter<TcpStream>>,
+
+  is_header_written: bool,
+  is_body_written: bool
 }
 
 impl Response {
@@ -14,7 +17,10 @@ impl Response {
     Response {
       status: StatusCode::OK,
       headers: Headers::new(),
-      stream: stream
+      stream: stream,
+
+      is_header_written: false,
+      is_body_written: false
     }
   }
 
@@ -29,6 +35,10 @@ impl Response {
   }
 
   pub fn send_headers(&mut self) -> Result<Return, Box<dyn Error>> {
+    if self.is_header_written {
+      return Ok(Return::End);
+    }
+
     let writer = self.stream.as_mut().unwrap();
     writer.write_fmt(format_args!("{} {} {}\r\n", 
       protocol::HTTP_PROTOCOL, 
@@ -41,16 +51,25 @@ impl Response {
         writer.write_fmt(format_args!("{}: {}\r\n", key, value))?;
       }
     }
+
+    self.is_header_written = true;
     Ok(Return::End)
   }
 
   pub fn send_body(&mut self, body: Vec<u8>) -> Result<Return, Box<dyn Error>> {
+    if self.is_body_written {
+      return Ok(Return::End);
+    }
+
     self.headers.set("Content-Length", body.len().to_string());
     self.send_headers()?;
 
     let writer = self.stream.as_mut().unwrap();
     writer.write(b"\r\n")?;
     writer.write_all(&body)?;
+    writer.flush()?;
+
+    self.is_body_written = true;
     Ok(Return::End)
   }
 }

@@ -1,9 +1,20 @@
 use std::{error::Error, net::TcpListener};
 
-use crate::{request::Method, router::{HandleType, Handler, HookType, Router}, stream, Handle};
+use crate::{protocol::StatusCode, request::Method, router::{HandleType, Handler, HookType, Router}, stream, Handle};
 
 pub struct App {
   router: Router
+}
+
+macro_rules! unwrap_or_continue {
+    ($e:expr) => {
+        {
+          match $e {
+            Ok(v) => v,
+            Err(_) => continue
+          }
+        }
+    };
 }
 
 impl App {
@@ -63,13 +74,14 @@ impl App {
     let listener = TcpListener::bind(address)?;
 
     for incoming in listener.incoming() {
-      let req_stream = match incoming {
+      let stream = match incoming {
         Ok(stream) => stream,
         Err(_) => {
           continue;
         }
       };
-      let res_stream = req_stream.try_clone()?;
+      let req_stream = unwrap_or_continue!(stream.try_clone());
+      let res_stream = unwrap_or_continue!(stream.try_clone());
 
       let req = match stream::parse_stream(req_stream) {
         Ok(req) => req,
@@ -79,7 +91,16 @@ impl App {
         }
       };
 
-      self.router.dispatch(req, res_stream);
+      let (mut res, error) = self.router.dispatch(req, res_stream);
+      if let Some(err) = error {
+        let _ = res
+          .content_type("text/plain")
+          .status(StatusCode::InternalServerError)
+          .send_body(err.to_string().into());
+      }
+
+      let _ = stream.shutdown(std::net::Shutdown::Both);
+      continue
     }
 
     return Ok(())
